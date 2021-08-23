@@ -30,23 +30,27 @@
     <button v-on:click='click'>v-on click</button>
     <button @click='click'>@click</button>
   </div>
+
+  <script src="./Observer.js"></script>
   <script src="./MVue.js"></script>
   <script>
     let vm = new MVue({
       el: '#app',
       data: {
         person: {
-          name: 's',
+          name: 'Madelynn',
           age: 18,
           fav: '啦啦啦'
         },
         msg: '学习mvvm实现原理1',
-        htmlStr: '<div>大家好，</div>'
+        htmlStr: '<div>Easter Fork</div>'
       },
       methods: {
         click() {
-          alert('click!!')
+          // alert('click!!')
           console.log(this)
+          // this.$data.person.name = '哈哈哈'
+          this.person.name = 'Christy Davis'
         }
       }
     })

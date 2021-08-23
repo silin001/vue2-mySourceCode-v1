@@ -1,3 +1,4 @@
+// 单独抽出工具方法, 1初始化数据2绑定观察者!
 const compileUtil = {
   // 处理person.msg 多层次数据
   getVal (expr, vm) {
@@ -6,11 +7,28 @@ const compileUtil = {
       return data[currentVal]
     }, vm.$data)
   },
+  setVal (expr, vm, newInputVal) {
+    // FIXME reduce 这里对象结构双向绑定会 报错!
+    // TODO 建议使用forEach实现
+    return expr.split('.').reduce((data, currentVal) => {
+      console.log(currentVal)
+      data[currentVal] = newInputVal
+    }, vm.$data)
+  },
+  // 重新处理text
+  getContentVal (expr, vm) {
+    return expr.replace(/\{\{(.+?)\}\}/g, (...args) => {
+      return this.getVal(args[1], vm)
+    })
+  },
   text (node, expr, vm) { // expr :msg
     let value
     if (expr.includes('{{')) {
       value = expr.replace(/\{\{(.+?)\}\}/g, (...args) => {
-        console.log(args)
+        // 绑定watcher
+        new Watcher(vm, args[1], () => {
+          this.updater.textUpdater(node, this.getContentVal(expr, vm))// 因为text文本特殊 需要添加一个方法单点处理
+        })
         return this.getVal(args[1], vm)
       })
     } else {
@@ -20,21 +38,37 @@ const compileUtil = {
   },
   html (node, expr, vm) {
     const value = this.getVal(expr, vm)
+    //⭐ 绑定观察者watcher 对数据监听- 将来数据变化时触发这里的回调,更新视图!
+    new Watcher(vm, expr, (newVal) => {
+      this.updater.htmlUpdater(node, newVal)
+    })
+    // 1.初始化绑定值
     this.updater.htmlUpdater(node, value)
 
   },
+  // ⭐ 双向数据绑定
   model (node, expr, vm) {
     const value = this.getVal(expr, vm)
+    // 绑定更新函数,数据=> 视图
+    new Watcher(vm, expr, (newVal) => {
+      this.updater.modelUpdater(node, newVal)
+    })
+    // 视图=> 数据=> 视图
+    node.addEventListener('input', (el) => {
+      // 设置值
+      this.setVal(expr, vm, el.target.value)
+    })
+
     this.updater.modelUpdater(node, value)
   },
   on (node, expr, vm, eventName) {
     let fun = vm.$options.methods && vm.$options.methods[expr]
-    console.log(node, eventName)
+    // console.log(node, eventName)
     node.addEventListener(eventName, fun.bind(vm), false)
   },
   // TODO  bind 和: 属性绑定待实现
   bind (node, expr, vm, attrNmae) {
-    console.log(attrNmae, expr)
+    // console.log(attrNmae, expr)
     // node.setAttribute(attrNmae, expr)
     // compileUtil['text'](node, content, this.vm)
 
@@ -52,14 +86,13 @@ const compileUtil = {
     }
   }
 }
-// 解析指令
+// 2.解析指令
 class Compile {
   constructor(el, vm) {
     this.el = this.isElementNode(el) ? el : document.querySelector(el)
     this.vm = vm
     // 1.获取文档碎片对象，放入内存减少页面重构和回流
     const fragment = this.node2Fragent(this.el)
-    console.log('🚀🚀 ~ file: MVue.js ~ line 7 ~ Compile ~ constructor ~ fragment', fragment)
     // 2.编译模板
     this.compile(fragment)
     // 3.追加子元素到根元素
@@ -113,7 +146,7 @@ class Compile {
   compileText (node) {
     const content = node.textContent
     if (/\{\{(.+?)\}\}/.test(content)) {
-      console.log(content)
+      // console.log(content)
       compileUtil['text'](node, content, this.vm)
     }
   }
@@ -140,7 +173,7 @@ class Compile {
     return node.nodeType === 1
   }
 }
-// vue类
+// 1.vue类
 class MVue {
   constructor(options) {
     this.$el = options.el
@@ -148,8 +181,23 @@ class MVue {
     this.$options = options
     if (this.$el) {
       // 1.实现一个数据观察者：observer类
+      new Observer(this.$data)
       // 2.实现一个指令解析器： compile类
       new Compile(this.$el, this)
+      // 代理实现直接 this.a  取代 this.$data.XXX
+      this.proxyData(this.$data)
+    }
+  }
+  proxyData (data) {
+    for (const key in data) {
+      Object.defineProperty(this, key, {
+        get () {
+          return data[key]
+        },
+        set (newVal) {
+          data[key] = newVal
+        }
+      })
     }
   }
 }
