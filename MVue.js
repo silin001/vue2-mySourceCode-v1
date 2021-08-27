@@ -2,22 +2,42 @@
 const compileUtil = {
   // 处理person.msg 多层次数据
   getVal (expr, vm) {
-    return expr.split('.').reduce((data, currentVal) => {
-      // console.log(currentVal)
-      return data[currentVal]
-    }, vm.$data)
+    // BUG 此处不能使用 reduce   对象数据双向绑定时有问题！
+    // return expr.split('.').reduce((data, currentVal) => {
+    //   // console.log(currentVal)
+    //   return data[currentVal]
+    // }, vm.$data)
+    console.log(expr, vm)
+    let val = vm.$data
+    expr = expr.split('.')
+    expr.forEach((item) => {
+      val = val[item]
+    })
+    return val
   },
   setVal (expr, vm, newInputVal) {
     // FIXME reduce 这里对象结构双向绑定会 报错!
-    // TODO 建议使用forEach实现
-    return expr.split('.').reduce((data, currentVal) => {
-      console.log(currentVal)
-      data[currentVal] = newInputVal
-    }, vm.$data)
+    // return expr.split('.').reduce((data, currentVal) => {
+    //   console.log(data, currentVal)
+    //   data[currentVal] = newInputVal
+    // }, vm.$data)
+    let val = vm
+    expr = expr.split('.')
+    expr.forEach((item, index) => {
+      // console.log(item)
+      if (index < expr.length - 1) {
+        val = val[item]
+      } else {
+        val[item] = newInputVal
+      }
+    })
+
   },
   // 重新处理text
   getContentVal (expr, vm) {
+    // console.log('🚀🚀 ~ file: MVue.js ~ line 41 ~ getContentVal ~ expr', expr)
     return expr.replace(/\{\{(.+?)\}\}/g, (...args) => {
+      console.log(args)
       return this.getVal(args[1], vm)
     })
   },
@@ -32,6 +52,7 @@ const compileUtil = {
         return this.getVal(args[1], vm)
       })
     } else {
+      console.log(expr)
       value = this.getVal(expr, vm)
     }
     this.updater.textUpdater(node, value)
@@ -48,17 +69,22 @@ const compileUtil = {
   },
   // ⭐ 双向数据绑定
   model (node, expr, vm) {
-    const value = this.getVal(expr, vm)
     // 绑定更新函数,数据=> 视图
     new Watcher(vm, expr, (newVal) => {
       this.updater.modelUpdater(node, newVal)
     })
+
+    let value = this.getVal(expr, vm)
     // 视图=> 数据=> 视图
     node.addEventListener('input', (el) => {
-      // 设置值
-      this.setVal(expr, vm, el.target.value)
-    })
+      const newVal = el.target.value
+      // 设置input值
+      this.setVal(expr, vm, newVal)
 
+      // this.updater.textUpdater(node, newVal)
+      // value = newVal
+    })
+    // console.log(value)
     this.updater.modelUpdater(node, value)
   },
   on (node, expr, vm, eventName) {
@@ -123,7 +149,10 @@ class Compile {
   // 编译元素节点
   compileElement (node) {
     // console.log('🚀🚀 ~ file: MVue.js ~ line 36 ~ Compile ~ compileElement ~ node', node)
-    const attributes = [...node.attributes]
+    const attributes = [...node.attributes] // 获取真正的属性列表 并且转为真数组
+    // // 写法2
+    // Array.prototype.slice.call(attributes).forEach()
+    // [].slice.call(attributes).forEach()
     attributes.forEach(attr => {
       const { name, value } = attr
       // 如果是v-开头 就是一个指令
@@ -146,8 +175,17 @@ class Compile {
   compileText (node) {
     const content = node.textContent
     if (/\{\{(.+?)\}\}/.test(content)) {
-      // console.log(content)
+
+      const exp = content.replace(/\{\{(.+?)\}\}/g, (...args) => {
+        return args[1]
+      })
       compileUtil['text'](node, content, this.vm)
+      // ⭐ 绑定watcher
+      // new Watcher(this.vm, exp, () => {
+      //   compileUtil['text'](node, compileUtil.getContentVal(content, this.vm))// 因为text文本特殊 需要添加一个方法单点处理
+      //   compileUtil.textUpdater(node, this.getContentVal(exp, vm))// 因为text文本特殊 需要添加一个方法单点处理
+      // })
+
     }
   }
 
@@ -163,6 +201,7 @@ class Compile {
     // 创建文档碎片
     const f = document.createDocumentFragment()
     let firstChild
+    // 让所有dom节点都进入fragment
     while (firstChild = el.firstChild) {
       f.appendChild(firstChild)
     }

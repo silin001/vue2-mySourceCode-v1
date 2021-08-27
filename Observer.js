@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-08-23 14:22:30
- * @LastEditTime: 2021-08-23 17:24:50
+ * @LastEditTime: 2021-08-27 16:51:48
  * @LastEditors: Please set LastEditors
  * @Description:  劫持监听所有属性
  * @FilePath: \risk-uid:\web_si\my_webDemo\源码学习系列\vue响应式原理\sourceCode-vue2\sourceCode-v1\Observe.js
@@ -13,6 +13,7 @@ class Watcher {
   constructor(vm, expr, cbcallback) {
     this.vm = vm
     this.expr = expr
+    console.log(expr)
     this.cbcallback = cbcallback
     // 先把旧值保存起来
     this.oldVal = this.getOldVal()
@@ -34,7 +35,7 @@ class Watcher {
     }
   }
 }
-// 4.Dep类 作用： 1通知、收集观察者，
+// 4.Dep类 作用： 1通知watcher更新视图、2收集watcher观察者，
 class Dep {
   constructor() {
     this.subs = []
@@ -73,8 +74,8 @@ class Observer {
       enumerable: true, // 是否可读
       configurable: false, // 可被配置，比如可以被delete
       get () { // 初始化劫持数据时
-        // ⭐⭐⭐往Dep里添加观察者！！！
-        // 使用依赖收集器dep  关联  Dep 和 Ovserver
+        // ⭐⭐⭐往Dep里添加观察者！！！ 使用依赖收集器dep  关联  Dep 和 Ovserver
+        // 通过dep收集 watcher 依赖
         Dep.target && dep.addSub(Dep.target)
         return value
       },
@@ -84,7 +85,7 @@ class Observer {
           this.observe(newVal)
           value = newVal
         }
-        // 告诉Dep 通知变化
+        // 值发生变化时，通知Dep中的 watcher 更新视图
         dep.notify()
       }
     })
