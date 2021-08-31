@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-08-23 14:22:30
- * @LastEditTime: 2021-08-27 16:51:48
+ * @LastEditTime: 2021-08-31 09:42:48
  * @LastEditors: Please set LastEditors
  * @Description:  劫持监听所有属性
  * @FilePath: \risk-uid:\web_si\my_webDemo\源码学习系列\vue响应式原理\sourceCode-vue2\sourceCode-v1\Observe.js
@@ -13,7 +13,7 @@ class Watcher {
   constructor(vm, expr, cbcallback) {
     this.vm = vm
     this.expr = expr
-    console.log(expr)
+    // console.log(expr)
     this.cbcallback = cbcallback
     // 先把旧值保存起来
     this.oldVal = this.getOldVal()

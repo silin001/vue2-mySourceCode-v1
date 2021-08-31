@@ -2,12 +2,12 @@
 const compileUtil = {
   // 处理person.msg 多层次数据
   getVal (expr, vm) {
-    // BUG 此处不能使用 reduce   对象数据双向绑定时有问题！
+    // BUG 此处不能使用 reduce   对象数据双向绑定时有问题！  已优化！
     // return expr.split('.').reduce((data, currentVal) => {
     //   // console.log(currentVal)
     //   return data[currentVal]
     // }, vm.$data)
-    console.log(expr, vm)
+    // console.log(expr, vm)
     let val = vm.$data
     expr = expr.split('.')
     expr.forEach((item) => {
@@ -16,7 +16,7 @@ const compileUtil = {
     return val
   },
   setVal (expr, vm, newInputVal) {
-    // FIXME reduce 这里对象结构双向绑定会 报错!
+    // BUG  使用reduce 这里对象结构数据 双向绑定时会 报错,已优化!
     // return expr.split('.').reduce((data, currentVal) => {
     //   console.log(data, currentVal)
     //   data[currentVal] = newInputVal
@@ -24,7 +24,6 @@ const compileUtil = {
     let val = vm
     expr = expr.split('.')
     expr.forEach((item, index) => {
-      // console.log(item)
       if (index < expr.length - 1) {
         val = val[item]
       } else {
@@ -33,11 +32,10 @@ const compileUtil = {
     })
 
   },
-  // 重新处理text
+  // 重新处理text文本
   getContentVal (expr, vm) {
     // console.log('🚀🚀 ~ file: MVue.js ~ line 41 ~ getContentVal ~ expr', expr)
     return expr.replace(/\{\{(.+?)\}\}/g, (...args) => {
-      console.log(args)
       return this.getVal(args[1], vm)
     })
   },
@@ -45,7 +43,7 @@ const compileUtil = {
     let value
     if (expr.includes('{{')) {
       value = expr.replace(/\{\{(.+?)\}\}/g, (...args) => {
-        // 绑定watcher
+        //⭐ 绑定watcher
         new Watcher(vm, args[1], () => {
           this.updater.textUpdater(node, this.getContentVal(expr, vm))// 因为text文本特殊 需要添加一个方法单点处理
         })
@@ -53,6 +51,10 @@ const compileUtil = {
       })
     } else {
       console.log(expr)
+      //⭐ 绑定watcher
+      new Watcher(vm, expr, () => {
+        this.updater.textUpdater(node, this.getVal(expr, vm))// 因为text文本特殊 需要添加一个方法单点处理
+      })
       value = this.getVal(expr, vm)
     }
     this.updater.textUpdater(node, value)
@@ -65,24 +67,20 @@ const compileUtil = {
     })
     // 1.初始化绑定值
     this.updater.htmlUpdater(node, value)
-
   },
-  // ⭐ 双向数据绑定
+  // ⭐ 双向数据绑定实现！
   model (node, expr, vm) {
-    // 绑定更新函数,数据=> 视图
+    //2. ⭐ 添加绑定更新函数watcher, 数据=> 视图
     new Watcher(vm, expr, (newVal) => {
       this.updater.modelUpdater(node, newVal)
     })
-
+    //1.
     let value = this.getVal(expr, vm)
     // 视图=> 数据=> 视图
     node.addEventListener('input', (el) => {
       const newVal = el.target.value
       // 设置input值
       this.setVal(expr, vm, newVal)
-
-      // this.updater.textUpdater(node, newVal)
-      // value = newVal
     })
     // console.log(value)
     this.updater.modelUpdater(node, value)
@@ -175,17 +173,7 @@ class Compile {
   compileText (node) {
     const content = node.textContent
     if (/\{\{(.+?)\}\}/.test(content)) {
-
-      const exp = content.replace(/\{\{(.+?)\}\}/g, (...args) => {
-        return args[1]
-      })
       compileUtil['text'](node, content, this.vm)
-      // ⭐ 绑定watcher
-      // new Watcher(this.vm, exp, () => {
-      //   compileUtil['text'](node, compileUtil.getContentVal(content, this.vm))// 因为text文本特殊 需要添加一个方法单点处理
-      //   compileUtil.textUpdater(node, this.getContentVal(exp, vm))// 因为text文本特殊 需要添加一个方法单点处理
-      // })
-
     }
   }
 
